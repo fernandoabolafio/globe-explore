@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Globe Explorer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="globe-canvas"></canvas>
+      
+      <header class="header">
+        <h1 class="title">
+          <span class="title-icon">◉</span>
+          Globe Explorer
+        </h1>
+        <p class="subtitle">Spin • Zoom • Discover</p>
+      </header>
+
+      <div class="controls-hint">
+        <div class="hint-item">
+          <span class="hint-icon">↻</span>
+          <span>Drag to rotate</span>
+        </div>
+        <div class="hint-item">
+          <span class="hint-icon">⊕</span>
+          <span>Scroll to zoom</span>
+        </div>
+      </div>
+
+      <div class="coordinates-display">
+        <div class="coord-group">
+          <span class="coord-label">LAT</span>
+          <span class="coord-value" id="lat-value">0.00°</span>
+        </div>
+        <div class="coord-group">
+          <span class="coord-label">LON</span>
+          <span class="coord-value" id="lon-value">0.00°</span>
+        </div>
+        <div class="coord-group">
+          <span class="coord-label">ALT</span>
+          <span class="coord-value" id="alt-value">2.5x</span>
+        </div>
+      </div>
+
+      <div class="loading-overlay" id="loading">
+        <div class="loader">
+          <div class="loader-ring"></div>
+          <span class="loader-text">Loading Earth...</span>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="main.js"></script>
+  </body>
+</html>
+
