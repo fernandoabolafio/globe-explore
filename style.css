@@ -8,6 +8,7 @@
   --color-accent: #00d9ff;
   --color-warm: #ff6b9d;
   --color-iss: #00ffcc;
+  --color-sun: #ffdd44;
   
   --font-display: 'Syne', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
@@ -81,11 +82,41 @@ body {
 
 .subtitle {
   font-family: var(--font-mono);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: rgba(232, 232, 255, 0.5);
-  letter-spacing: 0.3em;
+  letter-spacing: 0.2em;
   margin-top: 8px;
   text-transform: uppercase;
+}
+
+/* Time Display */
+.time-display {
+  position: absolute;
+  top: 130px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  z-index: 10;
+  pointer-events: none;
+  animation: fadeSlideDown 1s ease-out 0.7s both;
+}
+
+.time-label {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: rgba(232, 232, 255, 0.4);
+  letter-spacing: 0.15em;
+}
+
+.time-value {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--color-sun);
+  text-shadow: 0 0 20px rgba(255, 221, 68, 0.4);
 }
 
 /* ISS Panel */
@@ -178,10 +209,68 @@ body {
   border-top: 1px solid rgba(0, 255, 204, 0.1);
 }
 
-.iss-orbit-info {
+.iss-visibility {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: rgba(232, 232, 255, 0.6);
+}
+
+/* Legend Panel */
+.legend-panel {
+  position: absolute;
+  bottom: 100px;
+  left: 40px;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 16px;
+  z-index: 10;
+  animation: fadeSlideRight 1s ease-out 1.4s both;
+}
+
+.legend-title {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: rgba(232, 232, 255, 0.7);
+  margin-bottom: 12px;
+  letter-spacing: 0.05em;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-family: var(--font-mono);
   font-size: 0.65rem;
-  color: rgba(232, 232, 255, 0.4);
+  color: rgba(232, 232, 255, 0.5);
+  margin-bottom: 8px;
+}
+
+.legend-item:last-child {
+  margin-bottom: 0;
+}
+
+.legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.legend-day {
+  background: linear-gradient(135deg, #4a90d9, #7cb8f0);
+  box-shadow: 0 0 8px rgba(74, 144, 217, 0.5);
+}
+
+.legend-night {
+  background: linear-gradient(135deg, #ffaa44, #ff7722);
+  box-shadow: 0 0 8px rgba(255, 170, 68, 0.5);
+}
+
+.legend-terminator {
+  background: linear-gradient(135deg, #ff6644, #ff4422);
+  box-shadow: 0 0 8px rgba(255, 102, 68, 0.5);
 }
 
 /* Controls Hint */
@@ -368,6 +457,12 @@ body {
 }
 
 /* Responsive */
+@media (max-width: 900px) {
+  .legend-panel {
+    display: none;
+  }
+}
+
 @media (max-width: 768px) {
   .iss-panel {
     top: auto;
@@ -400,5 +495,9 @@ body {
   .hint-item {
     padding: 8px 12px;
     font-size: 0.7rem;
+  }
+  
+  .time-display {
+    top: 110px;
   }
 }

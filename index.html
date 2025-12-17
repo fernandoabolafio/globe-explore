@@ -21,8 +21,14 @@
           <span class="title-icon">◉</span>
           Globe Explorer
         </h1>
-        <p class="subtitle">Spin • Zoom • Track ISS</p>
+        <p class="subtitle">Real-time Day/Night • ISS Tracker</p>
       </header>
+
+      <!-- UTC Time Display -->
+      <div class="time-display">
+        <span class="time-label">🌍 EARTH TIME</span>
+        <span class="time-value" id="utc-time">00:00:00 UTC</span>
+      </div>
 
       <!-- ISS Tracker Panel -->
       <div class="iss-panel">
@@ -54,7 +60,24 @@
         </div>
 
         <div class="iss-footer">
-          <span class="iss-orbit-info">🌍 Orbits Earth every ~90 minutes</span>
+          <span class="iss-visibility" id="iss-visibility">⏳ Loading...</span>
+        </div>
+      </div>
+
+      <!-- Day/Night Legend -->
+      <div class="legend-panel">
+        <div class="legend-title">☀️ Day/Night Cycle</div>
+        <div class="legend-item">
+          <span class="legend-dot legend-day"></span>
+          <span>Sunlit side</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot legend-night"></span>
+          <span>City lights (night)</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot legend-terminator"></span>
+          <span>Twilight zone</span>
         </div>
       </div>
 

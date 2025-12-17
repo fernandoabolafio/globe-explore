@@ -37,15 +37,13 @@ controls.autoRotateSpeed = 0.3;
 
 // Texture Loader
 const textureLoader = new THREE.TextureLoader();
-const loadingManager = new THREE.LoadingManager();
 
-loadingManager.onLoad = () => {
-  document.getElementById('loading').classList.add('hidden');
-};
-
-// Earth textures - using NASA Blue Marble textures
-const earthTexture = textureLoader.load(
+// Earth textures
+const earthDayTexture = textureLoader.load(
   'https://unpkg.com/three-globe@2.31.1/example/img/earth-blue-marble.jpg'
+);
+const earthNightTexture = textureLoader.load(
+  'https://unpkg.com/three-globe@2.31.1/example/img/earth-night.jpg'
 );
 const bumpTexture = textureLoader.load(
   'https://unpkg.com/three-globe@2.31.1/example/img/earth-topology.png'
@@ -63,28 +61,150 @@ const ISS_ALTITUDE = 408; // km
 const EARTH_REAL_RADIUS = 6371; // km
 const ISS_ORBIT_RADIUS = EARTH_RADIUS * (1 + ISS_ALTITUDE / EARTH_REAL_RADIUS);
 
-// Earth Geometry
-const earthGeometry = new THREE.SphereGeometry(EARTH_RADIUS, 64, 64);
+// ============================================
+// DAY/NIGHT EARTH SHADER
+// ============================================
 
-// Earth Material
-const earthMaterial = new THREE.MeshPhongMaterial({
-  map: earthTexture,
-  bumpMap: bumpTexture,
-  bumpScale: 0.02,
-  specularMap: specularTexture,
-  specular: new THREE.Color(0x333333),
-  shininess: 15,
+// Calculate sun position based on current time
+function getSunPosition() {
+  const now = new Date();
+  const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24));
+  const hour = now.getUTCHours() + now.getUTCMinutes() / 60;
+  
+  // Sun longitude (based on time of day)
+  const sunLon = -((hour / 24) * 360 - 180);
+  
+  // Sun latitude (based on Earth's axial tilt and day of year)
+  const axialTilt = 23.44;
+  const sunLat = axialTilt * Math.sin((2 * Math.PI * (dayOfYear - 81)) / 365);
+  
+  // Convert to 3D position
+  const phi = THREE.MathUtils.degToRad(90 - sunLat);
+  const theta = THREE.MathUtils.degToRad(sunLon + 180);
+  
+  return new THREE.Vector3(
+    -Math.sin(phi) * Math.cos(theta),
+    Math.cos(phi),
+    Math.sin(phi) * Math.sin(theta)
+  ).normalize();
+}
+
+// Custom shader for day/night Earth
+const earthShaderMaterial = new THREE.ShaderMaterial({
+  uniforms: {
+    dayTexture: { value: earthDayTexture },
+    nightTexture: { value: earthNightTexture },
+    bumpTexture: { value: bumpTexture },
+    sunDirection: { value: getSunPosition() },
+    bumpScale: { value: 0.02 },
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    varying vec3 vNormalWorld;
+    varying vec3 vPositionWorld;
+    
+    void main() {
+      vUv = uv;
+      // Transform normal to WORLD space (not view space)
+      vNormalWorld = normalize(mat3(modelMatrix) * normal);
+      vPositionWorld = (modelMatrix * vec4(position, 1.0)).xyz;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D dayTexture;
+    uniform sampler2D nightTexture;
+    uniform vec3 sunDirection;
+    
+    varying vec2 vUv;
+    varying vec3 vNormalWorld;
+    varying vec3 vPositionWorld;
+    
+    void main() {
+      // Sample textures
+      vec4 dayColor = texture2D(dayTexture, vUv);
+      vec4 nightColor = texture2D(nightTexture, vUv);
+      
+      // Calculate sun intensity using WORLD space normal
+      vec3 normal = normalize(vNormalWorld);
+      float sunIntensity = dot(normal, sunDirection);
+      
+      // Create smooth transition at terminator
+      // The transition zone is about 10 degrees wide
+      float terminator = smoothstep(-0.1, 0.2, sunIntensity);
+      
+      // Boost night lights (they're quite dim in the texture)
+      vec4 boostedNight = nightColor * 1.8;
+      boostedNight.rgb = pow(boostedNight.rgb, vec3(0.8)); // Gamma correction for glow
+      
+      // Add orange/yellow tint to city lights
+      boostedNight.rgb *= vec3(1.0, 0.9, 0.7);
+      
+      // Mix day and night based on terminator
+      vec4 finalColor = mix(boostedNight, dayColor, terminator);
+      
+      // Add atmospheric scattering at the terminator (sunrise/sunset colors)
+      float twilight = smoothstep(-0.1, 0.0, sunIntensity) * smoothstep(0.2, 0.0, sunIntensity);
+      vec3 twilightColor = vec3(1.0, 0.4, 0.2) * twilight * 0.3;
+      finalColor.rgb += twilightColor;
+      
+      // Add slight ambient light so dark side isn't pure black
+      finalColor.rgb += dayColor.rgb * 0.05;
+      
+      // Specular highlight for water (simple approximation)
+      vec3 viewDir = normalize(cameraPosition - vPositionWorld);
+      vec3 reflectDir = reflect(-sunDirection, normal);
+      float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);
+      finalColor.rgb += vec3(1.0) * spec * 0.3 * max(sunIntensity, 0.0);
+      
+      gl_FragColor = finalColor;
+    }
+  `,
 });
 
-const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+// Earth Geometry
+const earthGeometry = new THREE.SphereGeometry(EARTH_RADIUS, 128, 128);
+const earth = new THREE.Mesh(earthGeometry, earthShaderMaterial);
 scene.add(earth);
 
-// Clouds layer
+// Clouds layer (only visible on day side)
 const cloudsGeometry = new THREE.SphereGeometry(EARTH_RADIUS * 1.013, 64, 64);
-const cloudsMaterial = new THREE.MeshPhongMaterial({
-  map: cloudsTexture,
+const cloudsMaterial = new THREE.ShaderMaterial({
+  uniforms: {
+    cloudsTexture: { value: cloudsTexture },
+    sunDirection: { value: getSunPosition() },
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    varying vec3 vNormalWorld;
+    
+    void main() {
+      vUv = uv;
+      vNormalWorld = normalize(mat3(modelMatrix) * normal);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D cloudsTexture;
+    uniform vec3 sunDirection;
+    
+    varying vec2 vUv;
+    varying vec3 vNormalWorld;
+    
+    void main() {
+      vec4 clouds = texture2D(cloudsTexture, vUv);
+      float sunIntensity = dot(normalize(vNormalWorld), sunDirection);
+      
+      // Clouds fade out on night side
+      float dayFactor = smoothstep(-0.2, 0.3, sunIntensity);
+      
+      // Also reduce cloud visibility in twilight zone
+      float cloudAlpha = clouds.r * 0.4 * dayFactor;
+      
+      gl_FragColor = vec4(1.0, 1.0, 1.0, cloudAlpha);
+    }
+  `,
   transparent: true,
-  opacity: 0.35,
   depthWrite: false,
 });
 const clouds = new THREE.Mesh(cloudsGeometry, cloudsMaterial);
@@ -93,6 +213,64 @@ scene.add(clouds);
 // Atmosphere glow
 const atmosphereGeometry = new THREE.SphereGeometry(EARTH_RADIUS * 1.066, 64, 64);
 const atmosphereMaterial = new THREE.ShaderMaterial({
+  uniforms: {
+    sunDirection: { value: getSunPosition() },
+  },
+  vertexShader: `
+    varying vec3 vNormal;
+    varying vec3 vPosition;
+    
+    void main() {
+      vNormal = normalize(normalMatrix * normal);
+      vPosition = (modelMatrix * vec4(position, 1.0)).xyz;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform vec3 sunDirection;
+    
+    varying vec3 vNormal;
+    varying vec3 vPosition;
+    
+    void main() {
+      float intensity = pow(0.7 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
+      
+      // Vary atmosphere color based on sun position
+      vec3 worldNormal = normalize(vPosition);
+      float sunFacing = dot(worldNormal, sunDirection);
+      
+      // Blue atmosphere on day side, darker on night
+      vec3 dayAtmo = vec3(0.3, 0.6, 1.0);
+      vec3 nightAtmo = vec3(0.1, 0.15, 0.3);
+      vec3 atmoColor = mix(nightAtmo, dayAtmo, smoothstep(-0.3, 0.3, sunFacing));
+      
+      gl_FragColor = vec4(atmoColor, 1.0) * intensity;
+    }
+  `,
+  blending: THREE.AdditiveBlending,
+  side: THREE.BackSide,
+  transparent: true,
+});
+const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+scene.add(atmosphere);
+
+// ============================================
+// SUN INDICATOR
+// ============================================
+
+// Visual sun indicator (small sun icon in the distance)
+const sunIndicatorGeometry = new THREE.SphereGeometry(0.3, 32, 32);
+const sunIndicatorMaterial = new THREE.MeshBasicMaterial({
+  color: 0xffdd44,
+  transparent: true,
+  opacity: 0.9,
+});
+const sunIndicator = new THREE.Mesh(sunIndicatorGeometry, sunIndicatorMaterial);
+scene.add(sunIndicator);
+
+// Sun glow
+const sunGlowGeometry = new THREE.SphereGeometry(0.5, 32, 32);
+const sunGlowMaterial = new THREE.ShaderMaterial({
   vertexShader: `
     varying vec3 vNormal;
     void main() {
@@ -103,16 +281,33 @@ const atmosphereMaterial = new THREE.ShaderMaterial({
   fragmentShader: `
     varying vec3 vNormal;
     void main() {
-      float intensity = pow(0.7 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
-      gl_FragColor = vec4(0.3, 0.6, 1.0, 1.0) * intensity;
+      float intensity = pow(0.8 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
+      gl_FragColor = vec4(1.0, 0.9, 0.5, 1.0) * intensity;
     }
   `,
   blending: THREE.AdditiveBlending,
   side: THREE.BackSide,
   transparent: true,
 });
-const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
-scene.add(atmosphere);
+const sunGlow = new THREE.Mesh(sunGlowGeometry, sunGlowMaterial);
+scene.add(sunGlow);
+
+function updateSunPosition() {
+  const sunDir = getSunPosition();
+  
+  // Update shader uniforms
+  earthShaderMaterial.uniforms.sunDirection.value = sunDir;
+  cloudsMaterial.uniforms.sunDirection.value = sunDir;
+  atmosphereMaterial.uniforms.sunDirection.value = sunDir;
+  
+  // Position sun indicator far away
+  const sunDistance = 20;
+  sunIndicator.position.copy(sunDir.clone().multiplyScalar(sunDistance));
+  sunGlow.position.copy(sunIndicator.position);
+  
+  // Update main light to match sun position
+  sunLight.position.copy(sunDir.clone().multiplyScalar(10));
+}
 
 // ============================================
 // ISS TRACKER
@@ -215,14 +410,13 @@ const orbitMaterial = new THREE.LineBasicMaterial({
   opacity: 0.15,
 });
 const orbitRing = new THREE.Line(orbitGeometry, orbitMaterial);
-// ISS orbit is inclined ~51.6 degrees
 orbitRing.rotation.x = THREE.MathUtils.degToRad(51.6);
 scene.add(orbitRing);
 
 // ISS State
 let issPosition = { lat: 0, lon: 0 };
 let issTargetPosition = { lat: 0, lon: 0 };
-let issVelocity = 27600; // km/h
+let issVelocity = 27600;
 let trailIndex = 0;
 let issDataFetched = false;
 
@@ -256,13 +450,19 @@ async function fetchISSPosition() {
     document.getElementById('iss-alt').textContent = `${data.altitude.toFixed(0)} km`;
     document.getElementById('iss-speed').textContent = `${data.velocity.toFixed(0)} km/h`;
     
+    // Update day/night indicator for ISS
+    const issInDaylight = data.visibility === 'daylight';
+    const issVisibility = document.getElementById('iss-visibility');
+    if (issVisibility) {
+      issVisibility.textContent = issInDaylight ? '☀️ Daylight' : '🌙 Night';
+    }
+    
     if (!issDataFetched) {
       issPosition = { ...issTargetPosition };
       issDataFetched = true;
     }
   } catch (error) {
     console.error('Failed to fetch ISS position:', error);
-    // Simulate movement if API fails
     issTargetPosition.lon += 0.5;
     if (issTargetPosition.lon > 180) issTargetPosition.lon -= 360;
   }
@@ -270,10 +470,8 @@ async function fetchISSPosition() {
 
 // Smooth interpolation for ISS position
 function updateISSPosition() {
-  // Lerp towards target position
   const lerpFactor = 0.05;
   
-  // Handle longitude wrap-around
   let lonDiff = issTargetPosition.lon - issPosition.lon;
   if (lonDiff > 180) lonDiff -= 360;
   if (lonDiff < -180) lonDiff += 360;
@@ -281,29 +479,22 @@ function updateISSPosition() {
   issPosition.lat += (issTargetPosition.lat - issPosition.lat) * lerpFactor;
   issPosition.lon += lonDiff * lerpFactor;
   
-  // Normalize longitude
   if (issPosition.lon > 180) issPosition.lon -= 360;
   if (issPosition.lon < -180) issPosition.lon += 360;
   
-  // Update 3D position
   const pos = latLonToPosition(issPosition.lat, issPosition.lon, ISS_ORBIT_RADIUS);
   issGroup.position.copy(pos);
-  
-  // Make ISS face the direction of travel
   issGroup.lookAt(0, 0, 0);
   
-  // Update trail
   trailIndex = (trailIndex + 1) % TRAIL_LENGTH;
   const positions = issTrail.geometry.attributes.position.array;
   
-  // Shift trail positions
   for (let i = TRAIL_LENGTH - 1; i > 0; i--) {
     positions[i * 3] = positions[(i - 1) * 3];
     positions[i * 3 + 1] = positions[(i - 1) * 3 + 1];
     positions[i * 3 + 2] = positions[(i - 1) * 3 + 2];
   }
   
-  // Add current position
   positions[0] = pos.x;
   positions[1] = pos.y;
   positions[2] = pos.z;
@@ -318,7 +509,6 @@ function animateISS() {
   const pulse = 1 + Math.sin(issPulse) * 0.2;
   issGlow.scale.setScalar(pulse);
   
-  // Rotate solar panels
   panel1.rotation.z += 0.01;
   panel2.rotation.z += 0.01;
 }
@@ -328,10 +518,9 @@ fetchISSPosition();
 setInterval(fetchISSPosition, 5000);
 
 // ============================================
-// END ISS TRACKER
+// STARFIELD
 // ============================================
 
-// Starfield
 function createStarfield() {
   const starsGeometry = new THREE.BufferGeometry();
   const starPositions = [];
@@ -348,14 +537,13 @@ function createStarfield() {
     
     starPositions.push(x, y, z);
     
-    // Varied star colors
     const colorChoice = Math.random();
     if (colorChoice > 0.95) {
-      starColors.push(1, 0.8, 0.6); // Orange stars
+      starColors.push(1, 0.8, 0.6);
     } else if (colorChoice > 0.9) {
-      starColors.push(0.8, 0.9, 1); // Blue-white stars
+      starColors.push(0.8, 0.9, 1);
     } else {
-      starColors.push(1, 1, 1); // White stars
+      starColors.push(1, 1, 1);
     }
   }
   
@@ -382,26 +570,30 @@ function createStarfield() {
 const stars = createStarfield();
 scene.add(stars);
 
-// Lighting
-const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+// ============================================
+// LIGHTING
+// ============================================
+
+const ambientLight = new THREE.AmbientLight(0x404040, 0.15);
 scene.add(ambientLight);
 
 const sunLight = new THREE.DirectionalLight(0xffffff, 2);
 sunLight.position.set(5, 3, 5);
 scene.add(sunLight);
 
-// Subtle rim light
-const rimLight = new THREE.DirectionalLight(0x88ccff, 0.3);
-rimLight.position.set(-5, 0, -5);
-scene.add(rimLight);
+// Initialize sun position (must be after sunLight is defined)
+updateSunPosition();
+setInterval(updateSunPosition, 60000);
 
-// UI Updates
+// ============================================
+// UI UPDATES
+// ============================================
+
 const latValue = document.getElementById('lat-value');
 const lonValue = document.getElementById('lon-value');
 const altValue = document.getElementById('alt-value');
 
 function updateCoordinates() {
-  // Calculate viewing angle as coordinates
   const cameraPos = camera.position.clone().normalize();
   const lat = Math.asin(cameraPos.y) * (180 / Math.PI);
   const lon = Math.atan2(cameraPos.x, cameraPos.z) * (180 / Math.PI);
@@ -412,17 +604,28 @@ function updateCoordinates() {
   altValue.textContent = `${(distance / 2).toFixed(1)}x`;
 }
 
-// Animation loop
+// Update time display
+function updateTimeDisplay() {
+  const now = new Date();
+  const utcString = now.toUTCString().slice(17, 25);
+  const timeDisplay = document.getElementById('utc-time');
+  if (timeDisplay) {
+    timeDisplay.textContent = utcString + ' UTC';
+  }
+}
+setInterval(updateTimeDisplay, 1000);
+updateTimeDisplay();
+
+// ============================================
+// ANIMATION LOOP
+// ============================================
+
 function animate() {
   requestAnimationFrame(animate);
   
-  // Rotate clouds slightly faster than auto-rotate for effect
   clouds.rotation.y += 0.0003;
-  
-  // Subtle star twinkle
   stars.rotation.y += 0.00005;
   
-  // Update ISS
   if (issDataFetched) {
     updateISSPosition();
     animateISS();
