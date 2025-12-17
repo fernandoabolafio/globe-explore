@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Globe Explorer</title>
+    <title>Globe Explorer - ISS Tracker</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -21,8 +21,42 @@
           <span class="title-icon">◉</span>
           Globe Explorer
         </h1>
-        <p class="subtitle">Spin • Zoom • Discover</p>
+        <p class="subtitle">Spin • Zoom • Track ISS</p>
       </header>
+
+      <!-- ISS Tracker Panel -->
+      <div class="iss-panel">
+        <div class="iss-header">
+          <div class="iss-indicator">
+            <span class="iss-dot"></span>
+            <span class="iss-label">ISS LIVE</span>
+          </div>
+          <span class="iss-name">International Space Station</span>
+        </div>
+        
+        <div class="iss-stats">
+          <div class="iss-stat">
+            <span class="iss-stat-label">LATITUDE</span>
+            <span class="iss-stat-value" id="iss-lat">--°</span>
+          </div>
+          <div class="iss-stat">
+            <span class="iss-stat-label">LONGITUDE</span>
+            <span class="iss-stat-value" id="iss-lon">--°</span>
+          </div>
+          <div class="iss-stat">
+            <span class="iss-stat-label">ALTITUDE</span>
+            <span class="iss-stat-value" id="iss-alt">-- km</span>
+          </div>
+          <div class="iss-stat">
+            <span class="iss-stat-label">VELOCITY</span>
+            <span class="iss-stat-value" id="iss-speed">-- km/h</span>
+          </div>
+        </div>
+
+        <div class="iss-footer">
+          <span class="iss-orbit-info">🌍 Orbits Earth every ~90 minutes</span>
+        </div>
+      </div>
 
       <div class="controls-hint">
         <div class="hint-item">
@@ -53,7 +87,7 @@
       <div class="loading-overlay" id="loading">
         <div class="loader">
           <div class="loader-ring"></div>
-          <span class="loader-text">Loading Earth...</span>
+          <span class="loader-text">Loading Earth & ISS...</span>
         </div>
       </div>
     </div>
@@ -61,4 +95,3 @@
     <script type="module" src="main.js"></script>
   </body>
 </html>
-

@@ -7,6 +7,7 @@
   --color-glow: #7b68ee;
   --color-accent: #00d9ff;
   --color-warm: #ff6b9d;
+  --color-iss: #00ffcc;
   
   --font-display: 'Syne', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
@@ -85,6 +86,102 @@ body {
   letter-spacing: 0.3em;
   margin-top: 8px;
   text-transform: uppercase;
+}
+
+/* ISS Panel */
+.iss-panel {
+  position: absolute;
+  top: 50%;
+  left: 40px;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 255, 204, 0.2);
+  border-radius: 16px;
+  padding: 20px;
+  min-width: 220px;
+  z-index: 10;
+  animation: fadeSlideRight 1s ease-out 1.2s both;
+  box-shadow: 
+    0 0 30px rgba(0, 255, 204, 0.1),
+    inset 0 0 30px rgba(0, 255, 204, 0.02);
+}
+
+.iss-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(0, 255, 204, 0.15);
+}
+
+.iss-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.iss-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--color-iss);
+  border-radius: 50%;
+  animation: issPulse 1.5s ease-in-out infinite;
+  box-shadow: 0 0 10px var(--color-iss);
+}
+
+.iss-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--color-iss);
+  letter-spacing: 0.15em;
+}
+
+.iss-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(232, 232, 255, 0.8);
+}
+
+.iss-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.iss-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.iss-stat-label {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: rgba(232, 232, 255, 0.35);
+  letter-spacing: 0.1em;
+}
+
+.iss-stat-value {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--color-star);
+  text-shadow: 0 0 15px rgba(0, 255, 204, 0.3);
+}
+
+.iss-footer {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 255, 204, 0.1);
+}
+
+.iss-orbit-info {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: rgba(232, 232, 255, 0.4);
 }
 
 /* Controls Hint */
@@ -231,6 +328,17 @@ body {
   }
 }
 
+@keyframes fadeSlideRight {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+}
+
 @keyframes pulse {
   0%, 100% {
     opacity: 1;
@@ -242,6 +350,17 @@ body {
   }
 }
 
+@keyframes issPulse {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 10px var(--color-iss);
+  }
+  50% {
+    opacity: 0.6;
+    box-shadow: 0 0 20px var(--color-iss), 0 0 30px var(--color-iss);
+  }
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -250,9 +369,19 @@ body {
 
 /* Responsive */
 @media (max-width: 768px) {
+  .iss-panel {
+    top: auto;
+    bottom: 140px;
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: auto;
+    width: calc(100% - 40px);
+    max-width: 320px;
+  }
+  
   .coordinates-display {
     top: auto;
-    bottom: 120px;
+    bottom: 340px;
     right: 50%;
     transform: translateX(50%);
     flex-direction: row;
@@ -273,4 +402,3 @@ body {
     font-size: 0.7rem;
   }
 }
-
