@@ -46,6 +46,7 @@ body {
   width: 100%;
   height: 100%;
   cursor: grab;
+  touch-action: none; /* Prevent browser gestures interfering with 3D controls */
 }
 
 #globe-canvas:active {
@@ -772,6 +773,16 @@ body {
   }
 }
 
+/* Mobile-specific fade animation (no transform conflict) */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @keyframes pulse {
   0%, 100% {
     opacity: 1;
@@ -935,19 +946,93 @@ body {
   }
 }
 
+/* Mobile Panel Switcher */
+.mobile-panel-switcher {
+  display: none;
+  position: fixed;
+  bottom: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 100px;
+  padding: 4px;
+  z-index: 15;
+  gap: 2px;
+}
+
+.panel-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 14px;
+  background: transparent;
+  border: none;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.panel-tab.active {
+  background: rgba(0, 217, 255, 0.2);
+}
+
+.tab-icon {
+  font-size: 1rem;
+}
+
+.tab-label {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  color: rgba(232, 232, 255, 0.6);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.panel-tab.active .tab-label {
+  color: var(--color-accent);
+}
+
 /* Responsive */
+
+/* Large tablets and small desktops */
+@media (max-width: 1200px) {
+  .moon-panel {
+    right: 40px;
+    transform: translateY(-50%);
+  }
+  
+  .coordinates-display {
+    display: none;
+  }
+}
+
 @media (max-width: 1100px) {
   .quake-panel {
     top: auto;
-    bottom: 100px;
-    right: 40px;
+    bottom: 160px;
+    right: 20px;
     min-width: 180px;
+    padding: 14px;
   }
   
   .asteroid-panel {
-    bottom: 100px;
+    bottom: 160px;
     right: auto;
-    left: 40px;
+    left: 20px;
+    padding: 14px;
+  }
+  
+  .iss-panel {
+    left: 20px;
+    padding: 16px;
+    min-width: 200px;
+  }
+  
+  .moon-panel {
+    right: 20px;
   }
 }
 
@@ -956,52 +1041,551 @@ body {
     display: none;
   }
   
+  .moon-panel {
+    display: none;
+  }
+  
+  .iss-panel {
+    top: auto;
+    bottom: 160px;
+    left: 20px;
+    transform: none;
+  }
+  
   .quake-panel {
+    bottom: 160px;
+    right: 20px;
+    min-width: 160px;
+  }
+  
+  .asteroid-panel {
     display: none;
   }
 }
 
+/* Tablet portrait and large phones */
 @media (max-width: 768px) {
-  .iss-panel {
-    top: auto;
-    bottom: 140px;
-    left: 50%;
-    transform: translateX(-50%);
-    min-width: auto;
-    width: calc(100% - 40px);
-    max-width: 320px;
+  .header {
+    top: 20px;
   }
   
-  .coordinates-display {
-    top: auto;
-    bottom: 340px;
-    right: 50%;
-    transform: translateX(50%);
-    flex-direction: row;
-    gap: 24px;
+  .title {
+    font-size: 1.4rem;
+    gap: 8px;
   }
   
-  .coord-group {
-    align-items: center;
-  }
-  
-  .controls-hint {
-    bottom: 30px;
-    gap: 16px;
-  }
-  
-  .hint-item {
-    padding: 8px 12px;
-    font-size: 0.7rem;
-  }
-  
-  .panels-toggle {
-    bottom: 90px;
+  .subtitle {
     font-size: 0.65rem;
-    padding: 10px 16px;
+    letter-spacing: 0.1em;
+    margin-top: 6px;
   }
   
   .time-display {
-    top: 110px;
+    top: 85px;
+  }
+  
+  .time-label {
+    font-size: 0.5rem;
+  }
+  
+  .time-value {
+    font-size: 0.9rem;
+  }
+  
+  /* Mobile panel switcher visible */
+  .mobile-panel-switcher {
+    display: flex;
+  }
+  
+  /* Stack panels at bottom - all same position, toggle visibility */
+  .iss-panel,
+  .quake-panel,
+  .asteroid-panel {
+    position: fixed;
+    top: auto !important;
+    left: 10px !important;
+    right: 10px !important;
+    bottom: 130px !important;
+    transform: none !important;
+    width: auto;
+    max-width: none;
+    min-width: auto;
+    padding: 12px 14px;
+    border-radius: 12px;
+    max-height: 32vh;
+    overflow-y: auto;
+    animation: fadeIn 0.3s ease-out;
+  }
+  
+  .iss-panel {
+    z-index: 11;
+    display: block;
+  }
+  
+  .quake-panel {
+    z-index: 11;
+    display: none;
+  }
+  
+  .quake-panel.mobile-active {
+    display: block;
+  }
+  
+  .asteroid-panel {
+    z-index: 11;
+    display: none;
+  }
+  
+  .asteroid-panel.mobile-active {
+    display: block;
+  }
+  
+  .iss-panel.mobile-hidden {
+    display: none;
+  }
+  
+  .iss-header {
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+  }
+  
+  .iss-name {
+    font-size: 0.75rem;
+  }
+  
+  .iss-stats {
+    gap: 10px;
+  }
+  
+  .iss-stat-value {
+    font-size: 0.85rem;
+  }
+  
+  .iss-footer {
+    margin-top: 10px;
+    padding-top: 8px;
+  }
+  
+  /* Quake panel mobile adjustments */
+  .quake-stats {
+    gap: 16px;
+  }
+  
+  .quake-stat-large .quake-stat-value {
+    font-size: 1.5rem;
+  }
+  
+  .quake-legend {
+    gap: 8px;
+  }
+  
+  /* Asteroid panel mobile adjustments */
+  .asteroid-instructions {
+    margin-bottom: 10px;
+  }
+  
+  .asteroid-stats {
+    margin-bottom: 10px;
+  }
+  
+  .asteroid-btn {
+    padding: 12px 16px;
+    font-size: 0.8rem;
+  }
+  
+  .controls-hint {
+    bottom: 15px;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 0 10px;
+    max-width: 100%;
+  }
+  
+  .hint-item {
+    padding: 6px 10px;
+    font-size: 0.6rem;
+    gap: 5px;
+  }
+  
+  .hint-icon {
+    font-size: 0.85rem;
+  }
+  
+  .hint-impact {
+    display: none;
+  }
+  
+  .panels-toggle {
+    display: none;
+  }
+  
+  .moon-panel {
+    display: none;
+  }
+  
+  .coordinates-display {
+    display: none;
+  }
+}
+
+/* Small phones */
+@media (max-width: 480px) {
+  .header {
+    top: 15px;
+    width: 100%;
+    padding: 0 15px;
+  }
+  
+  .title {
+    font-size: 1.2rem;
+    gap: 6px;
+  }
+  
+  .title-icon {
+    font-size: 1rem;
+  }
+  
+  .subtitle {
+    font-size: 0.55rem;
+    letter-spacing: 0.08em;
+  }
+  
+  .time-display {
+    top: 70px;
+  }
+  
+  .time-value {
+    font-size: 0.8rem;
+  }
+  
+  .iss-panel,
+  .quake-panel,
+  .asteroid-panel {
+    bottom: 115px !important;
+    left: 8px !important;
+    right: 8px !important;
+    padding: 10px 12px;
+    max-height: 30vh;
+  }
+  
+  .iss-header {
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    gap: 4px;
+  }
+  
+  .iss-indicator {
+    gap: 6px;
+  }
+  
+  .iss-dot {
+    width: 6px;
+    height: 6px;
+  }
+  
+  .iss-label {
+    font-size: 0.6rem;
+  }
+  
+  .iss-name {
+    font-size: 0.7rem;
+  }
+  
+  .iss-stats {
+    gap: 8px;
+  }
+  
+  .iss-stat-label {
+    font-size: 0.5rem;
+  }
+  
+  .iss-stat-value {
+    font-size: 0.8rem;
+  }
+  
+  .iss-footer {
+    margin-top: 8px;
+    padding-top: 6px;
+  }
+  
+  .iss-visibility {
+    font-size: 0.65rem;
+  }
+  
+  /* Quake panel small phone adjustments */
+  .quake-header {
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    gap: 4px;
+  }
+  
+  .quake-stats {
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  
+  .quake-stat-large .quake-stat-value {
+    font-size: 1.3rem;
+  }
+  
+  .quake-recent {
+    margin-bottom: 10px;
+    padding: 8px;
+  }
+  
+  .quake-legend {
+    gap: 6px;
+  }
+  
+  .quake-legend-item {
+    font-size: 0.5rem;
+  }
+  
+  /* Asteroid panel small phone adjustments */
+  .asteroid-header {
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+  }
+  
+  .asteroid-stat-value {
+    font-size: 1.2rem;
+  }
+  
+  .asteroid-btn {
+    padding: 10px 14px;
+    font-size: 0.7rem;
+  }
+  
+  /* Mobile panel switcher adjustments */
+  .mobile-panel-switcher {
+    bottom: 60px;
+    padding: 3px;
+  }
+  
+  .panel-tab {
+    padding: 6px 12px;
+  }
+  
+  .tab-icon {
+    font-size: 0.9rem;
+  }
+  
+  .tab-label {
+    font-size: 0.45rem;
+  }
+  
+  .controls-hint {
+    bottom: 12px;
+    gap: 6px;
+  }
+  
+  .hint-item {
+    padding: 5px 8px;
+    font-size: 0.55rem;
+  }
+  
+  .hint-icon {
+    font-size: 0.75rem;
+  }
+}
+
+/* Very small phones */
+@media (max-width: 360px) {
+  .title {
+    font-size: 1rem;
+  }
+  
+  .subtitle {
+    font-size: 0.5rem;
+  }
+  
+  .iss-panel,
+  .quake-panel,
+  .asteroid-panel {
+    padding: 8px 10px;
+    max-height: 28vh;
+  }
+  
+  .iss-stats {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+  
+  .iss-stat-value {
+    font-size: 0.7rem;
+  }
+  
+  .mobile-panel-switcher {
+    bottom: 55px;
+  }
+  
+  .panel-tab {
+    padding: 5px 10px;
+  }
+  
+  .tab-icon {
+    font-size: 0.8rem;
+  }
+  
+  .tab-label {
+    font-size: 0.4rem;
+  }
+  
+  .hint-item:nth-child(3) {
+    display: none;
+  }
+  
+  .controls-hint {
+    bottom: 10px;
+  }
+}
+
+/* Landscape mode on phones */
+@media (max-height: 500px) and (orientation: landscape) {
+  .header {
+    top: 10px;
+  }
+  
+  .title {
+    font-size: 1.1rem;
+  }
+  
+  .subtitle {
+    display: none;
+  }
+  
+  .time-display {
+    top: 50px;
+    flex-direction: row;
+    gap: 8px;
+  }
+  
+  .time-label {
+    font-size: 0.5rem;
+  }
+  
+  .time-value {
+    font-size: 0.75rem;
+  }
+  
+  .iss-panel,
+  .quake-panel,
+  .asteroid-panel {
+    position: fixed !important;
+    top: 50% !important;
+    bottom: auto !important;
+    left: 10px !important;
+    right: auto !important;
+    transform: translateY(-50%) !important;
+    width: auto;
+    max-width: 200px;
+    max-height: 75vh;
+    padding: 10px;
+  }
+  
+  .iss-header {
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+  }
+  
+  .iss-name {
+    font-size: 0.65rem;
+  }
+  
+  .iss-stats {
+    gap: 6px;
+  }
+  
+  .iss-stat-label {
+    font-size: 0.45rem;
+  }
+  
+  .iss-stat-value {
+    font-size: 0.7rem;
+  }
+  
+  .iss-footer {
+    display: none;
+  }
+  
+  /* Mobile panel switcher in landscape */
+  .mobile-panel-switcher {
+    bottom: auto;
+    top: 50%;
+    left: auto;
+    right: 10px;
+    transform: translateY(-50%);
+    flex-direction: column;
+    border-radius: 12px;
+  }
+  
+  .panel-tab {
+    padding: 6px 10px;
+  }
+  
+  .tab-label {
+    display: none;
+  }
+  
+  .controls-hint {
+    bottom: 10px;
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    flex-direction: row;
+    gap: 6px;
+  }
+  
+  .hint-item {
+    padding: 4px 8px;
+    font-size: 0.5rem;
+  }
+  
+  .panels-toggle {
+    display: none;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .quake-toggle,
+  .asteroid-btn,
+  .panels-toggle {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .panel-tab {
+    min-height: 44px;
+    min-width: 50px;
+  }
+  
+  .hint-item {
+    min-height: 36px;
+  }
+  
+  /* Disable hover states on touch */
+  .quake-toggle:hover,
+  .asteroid-btn:hover,
+  .panels-toggle:hover {
+    transform: none;
+  }
+  
+  .asteroid-btn:active {
+    transform: scale(0.98);
+  }
+}
+
+/* Safe area insets for notched devices */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .controls-hint {
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  }
+  
+  .iss-panel,
+  .quake-panel,
+  .asteroid-panel {
+    margin-bottom: env(safe-area-inset-bottom);
   }
 }

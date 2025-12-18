@@ -774,7 +774,8 @@ function toggleAllPanels() {
     '.asteroid-panel',
     '.time-display',
     '.coordinates-display',
-    '.controls-hint'
+    '.controls-hint',
+    '.mobile-panel-switcher'
   ];
   
   panels.forEach(selector => {
@@ -801,6 +802,58 @@ function toggleAllPanels() {
 
 // Expose toggle to window for button onclick
 window.toggleAllPanels = toggleAllPanels;
+
+// Mobile panel switcher
+let currentMobilePanel = 'iss';
+
+function switchMobilePanel(panelName) {
+  currentMobilePanel = panelName;
+  
+  // Update tab states
+  const tabs = document.querySelectorAll('.panel-tab');
+  tabs.forEach(tab => {
+    if (tab.dataset.panel === panelName) {
+      tab.classList.add('active');
+    } else {
+      tab.classList.remove('active');
+    }
+  });
+  
+  // Update panel visibility
+  const issPanel = document.querySelector('.iss-panel');
+  const quakePanel = document.querySelector('.quake-panel');
+  const asteroidPanel = document.querySelector('.asteroid-panel');
+  
+  // Reset all panels
+  if (issPanel) {
+    issPanel.classList.remove('mobile-hidden');
+    issPanel.classList.remove('mobile-active');
+  }
+  if (quakePanel) {
+    quakePanel.classList.remove('mobile-active');
+  }
+  if (asteroidPanel) {
+    asteroidPanel.classList.remove('mobile-active');
+  }
+  
+  // Show selected panel
+  switch (panelName) {
+    case 'iss':
+      // ISS is shown by default, just ensure it's visible
+      break;
+    case 'quake':
+      if (issPanel) issPanel.classList.add('mobile-hidden');
+      if (quakePanel) quakePanel.classList.add('mobile-active');
+      break;
+    case 'asteroid':
+      if (issPanel) issPanel.classList.add('mobile-hidden');
+      if (asteroidPanel) asteroidPanel.classList.add('mobile-active');
+      break;
+  }
+}
+
+// Expose to window for button onclick
+window.switchMobilePanel = switchMobilePanel;
 
 // Fetch earthquake data from USGS
 async function fetchEarthquakes() {
@@ -1410,6 +1463,42 @@ function onGlobeDoubleClick(event) {
 
 // Add double-click listener for asteroid impacts
 canvas.addEventListener('dblclick', onGlobeDoubleClick);
+
+// Add double-tap support for mobile
+let lastTapTime = 0;
+let lastTapX = 0;
+let lastTapY = 0;
+
+canvas.addEventListener('touchend', (event) => {
+  const currentTime = Date.now();
+  const touch = event.changedTouches[0];
+  const tapX = touch.clientX;
+  const tapY = touch.clientY;
+  
+  // Check if this is a double tap (within 300ms and 30px of last tap)
+  const timeDiff = currentTime - lastTapTime;
+  const distX = Math.abs(tapX - lastTapX);
+  const distY = Math.abs(tapY - lastTapY);
+  
+  if (timeDiff < 300 && distX < 30 && distY < 30) {
+    // Prevent zoom
+    event.preventDefault();
+    
+    // Create a synthetic event for the handler
+    const syntheticEvent = {
+      clientX: tapX,
+      clientY: tapY
+    };
+    onGlobeDoubleClick(syntheticEvent);
+    
+    // Reset to prevent triple-tap
+    lastTapTime = 0;
+  } else {
+    lastTapTime = currentTime;
+    lastTapX = tapX;
+    lastTapY = tapY;
+  }
+}, { passive: false });
 
 // Expose impact function for button
 window.triggerRandomImpact = function() {
