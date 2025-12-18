@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Globe Explorer - ISS Tracker</title>
+    <title>Globe Explorer - ISS & Earthquake Tracker</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -21,7 +21,7 @@
           <span class="title-icon">◉</span>
           Globe Explorer
         </h1>
-        <p class="subtitle">Real-time Day/Night • ISS Tracker</p>
+        <p class="subtitle">Day/Night • ISS • Earthquakes</p>
       </header>
 
       <!-- UTC Time Display -->
@@ -64,20 +64,53 @@
         </div>
       </div>
 
-      <!-- Day/Night Legend -->
-      <div class="legend-panel">
-        <div class="legend-title">☀️ Day/Night Cycle</div>
-        <div class="legend-item">
-          <span class="legend-dot legend-day"></span>
-          <span>Sunlit side</span>
+      <!-- Earthquake Panel -->
+      <div class="quake-panel">
+        <div class="quake-header">
+          <div class="quake-header-top">
+            <div class="quake-indicator">
+              <span class="quake-icon">🌋</span>
+              <span class="quake-label">EARTHQUAKES</span>
+            </div>
+            <button class="quake-toggle" id="quake-toggle" onclick="toggleEarthquakes()">HIDE</button>
+          </div>
+          <span class="quake-timeframe">Last 24 hours (M2.5+)</span>
+          <span class="quake-audio-hint">🔊 Click globe to enable audio</span>
         </div>
-        <div class="legend-item">
-          <span class="legend-dot legend-night"></span>
-          <span>City lights (night)</span>
+        
+        <div class="quake-stats">
+          <div class="quake-stat quake-stat-large">
+            <span class="quake-stat-value" id="quake-count">--</span>
+            <span class="quake-stat-label">TOTAL</span>
+          </div>
+          <div class="quake-stat">
+            <span class="quake-stat-label">STRONGEST</span>
+            <span class="quake-stat-value" id="quake-max-mag">--</span>
+          </div>
         </div>
-        <div class="legend-item">
-          <span class="legend-dot legend-terminator"></span>
-          <span>Twilight zone</span>
+
+        <div class="quake-recent">
+          <span class="quake-recent-label">LATEST:</span>
+          <span class="quake-recent-location" id="quake-last-location">Loading...</span>
+        </div>
+
+        <div class="quake-legend">
+          <div class="quake-legend-item">
+            <span class="quake-legend-dot quake-minor"></span>
+            <span>&lt;2.5</span>
+          </div>
+          <div class="quake-legend-item">
+            <span class="quake-legend-dot quake-light"></span>
+            <span>2.5-4.5</span>
+          </div>
+          <div class="quake-legend-item">
+            <span class="quake-legend-dot quake-moderate"></span>
+            <span>4.5-6</span>
+          </div>
+          <div class="quake-legend-item">
+            <span class="quake-legend-dot quake-major"></span>
+            <span>6+</span>
+          </div>
         </div>
       </div>
 
@@ -116,5 +149,10 @@
     </div>
 
     <script type="module" src="main.js"></script>
+
+    <script>
+      window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
   </body>
 </html>

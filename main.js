@@ -518,6 +518,396 @@ fetchISSPosition();
 setInterval(fetchISSPosition, 5000);
 
 // ============================================
+// EARTHQUAKE TRACKER
+// ============================================
+
+// Earthquake visualization group
+const earthquakeGroup = new THREE.Group();
+scene.add(earthquakeGroup);
+
+// Earthquake state
+let earthquakes = [];
+let earthquakeMeshes = [];
+let earthquakesVisible = true;
+
+// Get color based on magnitude (more subtle colors)
+function getMagnitudeColor(mag) {
+  if (mag >= 6.0) return new THREE.Color(0xff4444); // Red - major
+  if (mag >= 4.5) return new THREE.Color(0xff8855); // Orange - moderate  
+  if (mag >= 2.5) return new THREE.Color(0xddaa44); // Yellow/amber - light
+  return new THREE.Color(0x88cc66); // Soft green - minor
+}
+
+// Get beam height based on magnitude
+function getMagnitudeHeight(mag) {
+  const baseHeight = 0.08;
+  return baseHeight + (mag / 10) * 0.25;
+}
+
+// Create earthquake visualization with vertical light beam
+function createEarthquakePulse(lat, lon, magnitude, depth, id) {
+  const group = new THREE.Group();
+  
+  // Store position for audio calculations
+  const worldPos = latLonToPosition(lat, lon, EARTH_RADIUS * 1.001);
+  group.userData = { id, magnitude, depth, lat, lon, worldPos };
+  
+  // Position on globe surface
+  group.position.copy(worldPos);
+  
+  // Orient to point outward from Earth center
+  group.lookAt(0, 0, 0);
+  group.rotateX(Math.PI / 2);
+  
+  const color = getMagnitudeColor(magnitude);
+  const height = getMagnitudeHeight(magnitude);
+  const baseWidth = 0.008 + (magnitude / 10) * 0.015;
+  
+  // Vertical light beam (cone shape - wider at base)
+  const beamGeometry = new THREE.ConeGeometry(baseWidth, height, 8, 1, true);
+  beamGeometry.translate(0, height / 2, 0); // Move pivot to bottom
+  
+  const beamMaterial = new THREE.MeshBasicMaterial({
+    color: color,
+    transparent: true,
+    opacity: 0.6,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+  const beam = new THREE.Mesh(beamGeometry, beamMaterial);
+  beam.userData = { isBeam: true, baseOpacity: 0.6 };
+  group.add(beam);
+  
+  // Inner glow beam (brighter, thinner)
+  const innerBeamGeometry = new THREE.ConeGeometry(baseWidth * 0.4, height * 0.9, 6, 1, true);
+  innerBeamGeometry.translate(0, height * 0.45, 0);
+  
+  const innerBeamMaterial = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.4,
+    depthWrite: false,
+  });
+  const innerBeam = new THREE.Mesh(innerBeamGeometry, innerBeamMaterial);
+  innerBeam.userData = { isInnerBeam: true };
+  group.add(innerBeam);
+  
+  // Base glow (epicenter marker)
+  const baseGeometry = new THREE.CircleGeometry(baseWidth * 2, 16);
+  const baseMaterial = new THREE.MeshBasicMaterial({
+    color: color,
+    transparent: true,
+    opacity: 0.8,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+  const base = new THREE.Mesh(baseGeometry, baseMaterial);
+  base.userData = { isBase: true };
+  group.add(base);
+  
+  // Outer glow ring
+  const glowRingGeometry = new THREE.RingGeometry(baseWidth * 2, baseWidth * 3.5, 24);
+  const glowRingMaterial = new THREE.MeshBasicMaterial({
+    color: color,
+    transparent: true,
+    opacity: 0.25,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+  const glowRing = new THREE.Mesh(glowRingGeometry, glowRingMaterial);
+  glowRing.userData = { isGlowRing: true, baseScale: 1 };
+  group.add(glowRing);
+  
+  return group;
+}
+
+// Toggle earthquake visibility
+function toggleEarthquakes() {
+  earthquakesVisible = !earthquakesVisible;
+  earthquakeGroup.visible = earthquakesVisible;
+  
+  // Update toggle button
+  const toggleBtn = document.getElementById('quake-toggle');
+  if (toggleBtn) {
+    toggleBtn.textContent = earthquakesVisible ? 'HIDE' : 'SHOW';
+    toggleBtn.classList.toggle('toggle-off', !earthquakesVisible);
+  }
+  
+  // Mute audio if hidden
+  if (!earthquakesVisible) {
+    updateEarthquakeAudio(0);
+  }
+}
+
+// Expose toggle to window for button onclick
+window.toggleEarthquakes = toggleEarthquakes;
+
+// Fetch earthquake data from USGS
+async function fetchEarthquakes() {
+  try {
+    // Get all earthquakes from the last 24 hours (magnitude 2.5+)
+    const response = await fetch(
+      'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson'
+    );
+    const data = await response.json();
+    
+    // Clear existing earthquake meshes
+    earthquakeMeshes.forEach(mesh => {
+      earthquakeGroup.remove(mesh);
+      mesh.traverse(child => {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) child.material.dispose();
+      });
+    });
+    earthquakeMeshes = [];
+    
+    // Process earthquake data
+    earthquakes = data.features.map(feature => ({
+      id: feature.id,
+      magnitude: feature.properties.mag,
+      place: feature.properties.place,
+      time: feature.properties.time,
+      lat: feature.geometry.coordinates[1],
+      lon: feature.geometry.coordinates[0],
+      depth: feature.geometry.coordinates[2],
+    }));
+    
+    // Create visualizations for each earthquake
+    earthquakes.forEach(quake => {
+      const mesh = createEarthquakePulse(
+        quake.lat,
+        quake.lon,
+        quake.magnitude,
+        quake.depth,
+        quake.id
+      );
+      earthquakeGroup.add(mesh);
+      earthquakeMeshes.push(mesh);
+    });
+    
+    // Update UI
+    updateEarthquakeUI();
+    
+    console.log(`Loaded ${earthquakes.length} earthquakes`);
+  } catch (error) {
+    console.error('Failed to fetch earthquake data:', error);
+  }
+}
+
+// Update earthquake statistics in UI
+function updateEarthquakeUI() {
+  const countEl = document.getElementById('quake-count');
+  const maxMagEl = document.getElementById('quake-max-mag');
+  const lastLocationEl = document.getElementById('quake-last-location');
+  
+  if (countEl) {
+    countEl.textContent = earthquakes.length;
+  }
+  
+  if (maxMagEl && earthquakes.length > 0) {
+    const maxMag = Math.max(...earthquakes.map(q => q.magnitude));
+    maxMagEl.textContent = `M${maxMag.toFixed(1)}`;
+  }
+  
+  if (lastLocationEl && earthquakes.length > 0) {
+    // Most recent earthquake
+    const sorted = [...earthquakes].sort((a, b) => b.time - a.time);
+    const recent = sorted[0];
+    // Truncate location name
+    const location = recent.place.length > 25 
+      ? recent.place.slice(0, 25) + '...' 
+      : recent.place;
+    lastLocationEl.textContent = location;
+  }
+}
+
+// ============================================
+// EARTHQUAKE AUDIO SYSTEM
+// ============================================
+
+let audioContext = null;
+let earthquakeOscillators = [];
+let earthquakeGain = null;
+let audioInitialized = false;
+
+function initAudio() {
+  if (audioInitialized) return;
+  
+  try {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    
+    // Master gain for earthquake sounds
+    earthquakeGain = audioContext.createGain();
+    earthquakeGain.gain.value = 0;
+    earthquakeGain.connect(audioContext.destination);
+    
+    // Create layered rumble oscillators
+    const frequencies = [30, 45, 60, 80]; // Low rumble frequencies
+    frequencies.forEach((freq, i) => {
+      const osc = audioContext.createOscillator();
+      const oscGain = audioContext.createGain();
+      
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      oscGain.gain.value = 0.3 - i * 0.05; // Layer volumes
+      
+      osc.connect(oscGain);
+      oscGain.connect(earthquakeGain);
+      osc.start();
+      
+      earthquakeOscillators.push({ osc, gain: oscGain });
+    });
+    
+    // Add noise for texture
+    const bufferSize = 2 * audioContext.sampleRate;
+    const noiseBuffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+    const output = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      output[i] = Math.random() * 2 - 1;
+    }
+    
+    const noise = audioContext.createBufferSource();
+    noise.buffer = noiseBuffer;
+    noise.loop = true;
+    
+    const noiseFilter = audioContext.createBiquadFilter();
+    noiseFilter.type = 'lowpass';
+    noiseFilter.frequency.value = 100;
+    
+    const noiseGain = audioContext.createGain();
+    noiseGain.gain.value = 0.15;
+    
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(earthquakeGain);
+    noise.start();
+    
+    audioInitialized = true;
+    console.log('Earthquake audio initialized');
+  } catch (e) {
+    console.log('Web Audio not supported');
+  }
+}
+
+// Update earthquake audio based on proximity
+function updateEarthquakeAudio(intensity) {
+  if (!audioInitialized || !earthquakeGain) return;
+  
+  // Smooth volume transition
+  const targetVolume = Math.min(intensity * 0.4, 0.5); // Max volume 0.5
+  earthquakeGain.gain.linearRampToValueAtTime(
+    targetVolume,
+    audioContext.currentTime + 0.1
+  );
+  
+  // Vary oscillator frequencies slightly based on intensity for rumble effect
+  earthquakeOscillators.forEach((osc, i) => {
+    const baseFreq = [30, 45, 60, 80][i];
+    const wobble = Math.sin(Date.now() * 0.003 + i) * 5 * intensity;
+    osc.osc.frequency.linearRampToValueAtTime(
+      baseFreq + wobble,
+      audioContext.currentTime + 0.1
+    );
+  });
+}
+
+// Calculate closest earthquake and update audio
+function calculateEarthquakeProximity() {
+  if (!earthquakesVisible || earthquakes.length === 0) {
+    updateEarthquakeAudio(0);
+    return;
+  }
+  
+  let closestDistance = Infinity;
+  let closestMagnitude = 0;
+  
+  earthquakeMeshes.forEach(group => {
+    if (group.userData.worldPos) {
+      const distance = camera.position.distanceTo(group.userData.worldPos);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestMagnitude = group.userData.magnitude;
+      }
+    }
+  });
+  
+  // Calculate intensity based on distance and magnitude
+  // Closer = louder, bigger magnitude = louder
+  const maxDistance = 4; // Start hearing at this distance
+  const minDistance = 1.8; // Max volume at this distance (zoomed in close)
+  
+  if (closestDistance < maxDistance) {
+    const distanceFactor = 1 - ((closestDistance - minDistance) / (maxDistance - minDistance));
+    const magnitudeFactor = closestMagnitude / 8; // Normalize magnitude
+    const intensity = Math.max(0, distanceFactor * magnitudeFactor);
+    updateEarthquakeAudio(intensity);
+  } else {
+    updateEarthquakeAudio(0);
+  }
+}
+
+// Initialize audio on first user interaction
+canvas.addEventListener('click', () => initAudio(), { once: true });
+canvas.addEventListener('touchstart', () => initAudio(), { once: true });
+
+// ============================================
+// EARTHQUAKE ANIMATION
+// ============================================
+
+let earthquakeTime = 0;
+function animateEarthquakes() {
+  if (!earthquakesVisible) return;
+  
+  earthquakeTime += 0.03;
+  
+  earthquakeMeshes.forEach(group => {
+    const mag = group.userData.magnitude || 3;
+    const phaseOffset = group.userData.lat * 0.1; // Unique phase per quake
+    
+    group.children.forEach(child => {
+      if (child.userData.isBeam) {
+        // Flickering beam effect
+        const flicker = 0.5 + Math.sin(earthquakeTime * 3 + phaseOffset) * 0.2 
+                      + Math.sin(earthquakeTime * 7 + phaseOffset * 2) * 0.1;
+        child.material.opacity = child.userData.baseOpacity * flicker;
+        
+        // Subtle height pulse
+        const heightPulse = 1 + Math.sin(earthquakeTime * 2 + phaseOffset) * 0.1;
+        child.scale.y = heightPulse;
+      }
+      
+      if (child.userData.isInnerBeam) {
+        // Brighter flicker for inner beam
+        const flicker = 0.3 + Math.sin(earthquakeTime * 5 + phaseOffset) * 0.2;
+        child.material.opacity = flicker;
+      }
+      
+      if (child.userData.isBase) {
+        // Pulsing epicenter
+        const pulse = 0.7 + Math.sin(earthquakeTime * 2 + phaseOffset) * 0.2;
+        child.material.opacity = pulse;
+      }
+      
+      if (child.userData.isGlowRing) {
+        // Expanding glow ring
+        const expandSpeed = 1.5;
+        const progress = ((earthquakeTime * expandSpeed + phaseOffset) % 2) / 2;
+        const scale = 1 + progress * 1.5;
+        child.scale.set(scale, scale, 1);
+        child.material.opacity = 0.25 * (1 - progress);
+      }
+    });
+  });
+  
+  // Update proximity audio
+  calculateEarthquakeProximity();
+}
+
+// Fetch earthquakes every 5 minutes
+fetchEarthquakes();
+setInterval(fetchEarthquakes, 5 * 60 * 1000);
+
+// ============================================
 // STARFIELD
 // ============================================
 
@@ -630,6 +1020,9 @@ function animate() {
     updateISSPosition();
     animateISS();
   }
+  
+  // Animate earthquake pulses
+  animateEarthquakes();
   
   controls.update();
   updateCoordinates();
