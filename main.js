@@ -762,6 +762,45 @@ function toggleEarthquakes() {
 // Expose toggle to window for button onclick
 window.toggleEarthquakes = toggleEarthquakes;
 
+// Toggle all panels visibility
+let allPanelsVisible = true;
+function toggleAllPanels() {
+  allPanelsVisible = !allPanelsVisible;
+  
+  const panels = [
+    '.iss-panel',
+    '.moon-panel',
+    '.quake-panel',
+    '.time-display',
+    '.coordinates-display',
+    '.controls-hint'
+  ];
+  
+  panels.forEach(selector => {
+    const panel = document.querySelector(selector);
+    if (panel) {
+      panel.style.display = allPanelsVisible ? '' : 'none';
+    }
+  });
+  
+  // Update toggle button
+  const toggleBtn = document.getElementById('panels-toggle');
+  if (toggleBtn) {
+    const toggleText = toggleBtn.querySelector('.toggle-text');
+    const toggleIcon = toggleBtn.querySelector('.toggle-icon');
+    if (toggleText) {
+      toggleText.textContent = allPanelsVisible ? 'HIDE PANELS' : 'SHOW PANELS';
+    }
+    if (toggleIcon) {
+      toggleIcon.textContent = allPanelsVisible ? '👁' : '👁‍🗨';
+    }
+    toggleBtn.classList.toggle('panels-hidden', !allPanelsVisible);
+  }
+}
+
+// Expose toggle to window for button onclick
+window.toggleAllPanels = toggleAllPanels;
+
 // Fetch earthquake data from USGS
 async function fetchEarthquakes() {
   try {
