@@ -21,7 +21,7 @@
           <span class="title-icon">◉</span>
           Globe Explorer
         </h1>
-        <p class="subtitle">Day/Night • ISS • Moon • Earthquakes</p>
+        <p class="subtitle">Day/Night • ISS • Moon • Earthquakes • 💥 Asteroids</p>
       </header>
 
       <!-- UTC Time Display -->
@@ -129,6 +129,27 @@
         </div>
       </div>
 
+      <!-- Asteroid Impact Panel -->
+      <div class="asteroid-panel">
+        <div class="asteroid-header">
+          <span class="asteroid-icon">☄️</span>
+          <span class="asteroid-label">ASTEROID SIMULATOR</span>
+        </div>
+        <div class="asteroid-instructions">
+          <span class="asteroid-tip">👆👆 Double-click on Earth</span>
+          <span class="asteroid-effect">to cause DEVASTATION</span>
+        </div>
+        <div class="asteroid-stats">
+          <div class="asteroid-stat">
+            <span class="asteroid-stat-value" id="impact-count">0</span>
+            <span class="asteroid-stat-label">IMPACTS</span>
+          </div>
+        </div>
+        <button class="asteroid-btn" onclick="triggerRandomImpact()">
+          💥 RANDOM STRIKE
+        </button>
+      </div>
+
       <div class="controls-hint">
         <div class="hint-item">
           <span class="hint-icon">↻</span>
@@ -137,6 +158,10 @@
         <div class="hint-item">
           <span class="hint-icon">⊕</span>
           <span>Scroll to zoom</span>
+        </div>
+        <div class="hint-item hint-impact">
+          <span class="hint-icon">💥</span>
+          <span>Double-click to impact</span>
         </div>
       </div>
 

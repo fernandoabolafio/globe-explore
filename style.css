@@ -800,6 +800,141 @@ body {
   }
 }
 
+/* Asteroid Impact Panel */
+.asteroid-panel {
+  position: absolute;
+  bottom: 40px;
+  right: 40px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 68, 0, 0.3);
+  border-radius: 16px;
+  padding: 16px;
+  min-width: 180px;
+  z-index: 10;
+  animation: fadeSlideLeft 1s ease-out 1.6s both;
+  box-shadow: 
+    0 0 30px rgba(255, 68, 0, 0.15),
+    inset 0 0 30px rgba(255, 68, 0, 0.03);
+}
+
+.asteroid-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 68, 0, 0.2);
+}
+
+.asteroid-icon {
+  font-size: 1.2rem;
+  animation: asteroidPulse 1s ease-in-out infinite;
+}
+
+.asteroid-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #ff6644;
+  letter-spacing: 0.1em;
+}
+
+.asteroid-instructions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.asteroid-tip {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: rgba(232, 232, 255, 0.6);
+}
+
+.asteroid-effect {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #ff4422;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.asteroid-stats {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.asteroid-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.asteroid-stat-value {
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #ff6644;
+  text-shadow: 0 0 20px rgba(255, 68, 0, 0.5);
+}
+
+.asteroid-stat-label {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  color: rgba(232, 232, 255, 0.4);
+  letter-spacing: 0.1em;
+}
+
+.asteroid-btn {
+  width: 100%;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #ff4422 0%, #ff6644 100%);
+  border: none;
+  border-radius: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 0 4px 15px rgba(255, 68, 0, 0.3);
+}
+
+.asteroid-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(255, 68, 0, 0.5);
+  background: linear-gradient(135deg, #ff5533 0%, #ff7755 100%);
+}
+
+.asteroid-btn:active {
+  transform: translateY(0);
+}
+
+.hint-impact {
+  background: rgba(255, 68, 0, 0.1) !important;
+  border-color: rgba(255, 68, 0, 0.2) !important;
+}
+
+.hint-impact .hint-icon {
+  color: #ff6644;
+}
+
+@keyframes asteroidPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+}
+
 /* Responsive */
 @media (max-width: 1100px) {
   .quake-panel {
@@ -807,6 +942,12 @@ body {
     bottom: 100px;
     right: 40px;
     min-width: 180px;
+  }
+  
+  .asteroid-panel {
+    bottom: 100px;
+    right: auto;
+    left: 40px;
   }
 }
 

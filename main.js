@@ -771,6 +771,7 @@ function toggleAllPanels() {
     '.iss-panel',
     '.moon-panel',
     '.quake-panel',
+    '.asteroid-panel',
     '.time-display',
     '.coordinates-display',
     '.controls-hint'
@@ -1067,6 +1068,363 @@ fetchEarthquakes();
 setInterval(fetchEarthquakes, 5 * 60 * 1000);
 
 // ============================================
+// ASTEROID IMPACT SIMULATOR 💥
+// ============================================
+
+// Raycaster for click detection
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+// Active impacts array
+const activeImpacts = [];
+
+// Camera shake state
+let cameraShake = { intensity: 0, decay: 0.95 };
+const originalCameraPosition = new THREE.Vector3();
+
+// Create explosion flash
+function createExplosionFlash(position) {
+  const flashGeometry = new THREE.SphereGeometry(0.1, 16, 16);
+  const flashMaterial = new THREE.MeshBasicMaterial({
+    color: 0xffff00,
+    transparent: true,
+    opacity: 1,
+  });
+  const flash = new THREE.Mesh(flashGeometry, flashMaterial);
+  flash.position.copy(position);
+  return flash;
+}
+
+// Create shockwave ring
+function createShockwave(position, normal) {
+  const ringGeometry = new THREE.RingGeometry(0.01, 0.03, 64);
+  const ringMaterial = new THREE.MeshBasicMaterial({
+    color: 0xff4400,
+    transparent: true,
+    opacity: 0.9,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+  const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+  ring.position.copy(position);
+  
+  // Orient ring to face outward from Earth
+  ring.lookAt(new THREE.Vector3(0, 0, 0));
+  
+  return ring;
+}
+
+// Create fire debris particles
+function createDebrisParticles(position, count = 50) {
+  const particles = [];
+  
+  for (let i = 0; i < count; i++) {
+    const geometry = new THREE.SphereGeometry(0.008 + Math.random() * 0.015, 8, 8);
+    
+    // Random fire colors
+    const colors = [0xff4400, 0xff6600, 0xff8800, 0xffaa00, 0xffcc00];
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    
+    const material = new THREE.MeshBasicMaterial({
+      color: color,
+      transparent: true,
+      opacity: 1,
+    });
+    
+    const particle = new THREE.Mesh(geometry, material);
+    particle.position.copy(position);
+    
+    // Random velocity outward from Earth center + explosion direction
+    const direction = position.clone().normalize();
+    const randomOffset = new THREE.Vector3(
+      (Math.random() - 0.5) * 0.5,
+      (Math.random() - 0.5) * 0.5,
+      (Math.random() - 0.5) * 0.5
+    );
+    
+    particle.userData.velocity = direction.add(randomOffset).normalize().multiplyScalar(0.02 + Math.random() * 0.04);
+    particle.userData.life = 1;
+    particle.userData.decay = 0.015 + Math.random() * 0.01;
+    
+    particles.push(particle);
+  }
+  
+  return particles;
+}
+
+// Create secondary shockwave (bigger, slower)
+function createSecondaryWave(position) {
+  const ringGeometry = new THREE.RingGeometry(0.01, 0.02, 64);
+  const ringMaterial = new THREE.MeshBasicMaterial({
+    color: 0xff8800,
+    transparent: true,
+    opacity: 0.6,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+  const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+  ring.position.copy(position);
+  ring.lookAt(new THREE.Vector3(0, 0, 0));
+  return ring;
+}
+
+// Create ground scorch mark
+function createScorchMark(position) {
+  const scorchGeometry = new THREE.CircleGeometry(0.08, 32);
+  const scorchMaterial = new THREE.MeshBasicMaterial({
+    color: 0x331100,
+    transparent: true,
+    opacity: 0.7,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+  const scorch = new THREE.Mesh(scorchGeometry, scorchMaterial);
+  scorch.position.copy(position.clone().normalize().multiplyScalar(EARTH_RADIUS * 1.001));
+  scorch.lookAt(new THREE.Vector3(0, 0, 0));
+  return scorch;
+}
+
+// Create complete impact effect
+function createImpact(position) {
+  const impact = {
+    time: 0,
+    position: position.clone(),
+    flash: createExplosionFlash(position),
+    shockwaves: [],
+    secondaryWaves: [],
+    particles: createDebrisParticles(position, 60),
+    scorch: createScorchMark(position),
+    complete: false,
+  };
+  
+  // Add initial shockwave
+  impact.shockwaves.push(createShockwave(position));
+  
+  // Add all objects to scene
+  scene.add(impact.flash);
+  scene.add(impact.scorch);
+  impact.shockwaves.forEach(s => scene.add(s));
+  impact.particles.forEach(p => scene.add(p));
+  
+  // Trigger camera shake
+  cameraShake.intensity = 0.15;
+  originalCameraPosition.copy(camera.position);
+  
+  // Update impact counter
+  updateImpactCounter();
+  
+  return impact;
+}
+
+// Impact counter
+let totalImpacts = 0;
+function updateImpactCounter() {
+  totalImpacts++;
+  const counterEl = document.getElementById('impact-count');
+  if (counterEl) {
+    counterEl.textContent = totalImpacts;
+  }
+}
+
+// Animate all active impacts
+function animateImpacts() {
+  for (let i = activeImpacts.length - 1; i >= 0; i--) {
+    const impact = activeImpacts[i];
+    impact.time += 0.016; // ~60fps
+    
+    // Flash animation (quick bright flash then fade)
+    if (impact.flash) {
+      if (impact.time < 0.1) {
+        // Expand and brighten
+        const scale = 1 + impact.time * 30;
+        impact.flash.scale.setScalar(scale);
+        impact.flash.material.opacity = 1;
+        impact.flash.material.color.setHex(0xffffff);
+      } else if (impact.time < 0.4) {
+        // Fade to orange
+        const fade = 1 - ((impact.time - 0.1) / 0.3);
+        impact.flash.material.opacity = fade;
+        impact.flash.material.color.setHex(0xff6600);
+        impact.flash.scale.setScalar(4 + (impact.time - 0.1) * 5);
+      } else {
+        scene.remove(impact.flash);
+        impact.flash.geometry.dispose();
+        impact.flash.material.dispose();
+        impact.flash = null;
+      }
+    }
+    
+    // Shockwave expansion
+    impact.shockwaves.forEach((wave, index) => {
+      const age = impact.time - index * 0.1;
+      if (age > 0) {
+        const scale = 1 + age * 8;
+        wave.scale.setScalar(scale);
+        wave.material.opacity = Math.max(0, 0.9 - age * 0.8);
+        
+        // Update ring size as it expands
+        if (wave.material.opacity <= 0) {
+          scene.remove(wave);
+          wave.geometry.dispose();
+          wave.material.dispose();
+        }
+      }
+    });
+    impact.shockwaves = impact.shockwaves.filter(w => w.material.opacity > 0);
+    
+    // Add new shockwaves over time
+    if (impact.time > 0.15 && impact.shockwaves.length < 3) {
+      const newWave = createShockwave(impact.position);
+      impact.shockwaves.push(newWave);
+      scene.add(newWave);
+    }
+    if (impact.time > 0.3 && impact.secondaryWaves.length < 2) {
+      const newWave = createSecondaryWave(impact.position);
+      impact.secondaryWaves.push(newWave);
+      scene.add(newWave);
+    }
+    
+    // Secondary wave expansion (slower, bigger)
+    impact.secondaryWaves.forEach((wave, index) => {
+      const age = impact.time - 0.3 - index * 0.2;
+      if (age > 0) {
+        const scale = 1 + age * 5;
+        wave.scale.setScalar(scale);
+        wave.material.opacity = Math.max(0, 0.6 - age * 0.4);
+        
+        if (wave.material.opacity <= 0) {
+          scene.remove(wave);
+          wave.geometry.dispose();
+          wave.material.dispose();
+        }
+      }
+    });
+    impact.secondaryWaves = impact.secondaryWaves.filter(w => w.material.opacity > 0);
+    
+    // Particle animation
+    impact.particles.forEach(particle => {
+      if (particle.userData.life > 0) {
+        // Move particle
+        particle.position.add(particle.userData.velocity);
+        
+        // Slow down (air resistance)
+        particle.userData.velocity.multiplyScalar(0.97);
+        
+        // Add gravity toward Earth
+        const toCenter = particle.position.clone().normalize().multiplyScalar(-0.001);
+        particle.userData.velocity.add(toCenter);
+        
+        // Fade out
+        particle.userData.life -= particle.userData.decay;
+        particle.material.opacity = particle.userData.life;
+        
+        // Shrink
+        const shrink = 0.5 + particle.userData.life * 0.5;
+        particle.scale.setScalar(shrink);
+        
+        if (particle.userData.life <= 0) {
+          scene.remove(particle);
+          particle.geometry.dispose();
+          particle.material.dispose();
+        }
+      }
+    });
+    impact.particles = impact.particles.filter(p => p.userData.life > 0);
+    
+    // Scorch mark fade in then persist
+    if (impact.scorch) {
+      if (impact.time < 0.3) {
+        impact.scorch.material.opacity = (impact.time / 0.3) * 0.7;
+      }
+      // Scorch marks slowly fade after 5 seconds
+      if (impact.time > 5) {
+        impact.scorch.material.opacity -= 0.01;
+        if (impact.scorch.material.opacity <= 0) {
+          scene.remove(impact.scorch);
+          impact.scorch.geometry.dispose();
+          impact.scorch.material.dispose();
+          impact.scorch = null;
+        }
+      }
+    }
+    
+    // Check if impact is complete
+    if (!impact.flash && 
+        impact.shockwaves.length === 0 && 
+        impact.secondaryWaves.length === 0 && 
+        impact.particles.length === 0 &&
+        !impact.scorch) {
+      impact.complete = true;
+    }
+    
+    // Remove completed impacts
+    if (impact.complete) {
+      activeImpacts.splice(i, 1);
+    }
+  }
+  
+  // Camera shake
+  if (cameraShake.intensity > 0.001) {
+    const shakeX = (Math.random() - 0.5) * cameraShake.intensity;
+    const shakeY = (Math.random() - 0.5) * cameraShake.intensity;
+    const shakeZ = (Math.random() - 0.5) * cameraShake.intensity * 0.5;
+    
+    camera.position.x = originalCameraPosition.x + shakeX;
+    camera.position.y = originalCameraPosition.y + shakeY;
+    camera.position.z = originalCameraPosition.z + shakeZ;
+    
+    cameraShake.intensity *= cameraShake.decay;
+  } else if (cameraShake.intensity > 0) {
+    camera.position.copy(originalCameraPosition);
+    cameraShake.intensity = 0;
+  }
+}
+
+// Handle double-click to create impact (doesn't interfere with drag-to-rotate)
+function onGlobeDoubleClick(event) {
+  // Calculate mouse position in normalized device coordinates
+  const rect = canvas.getBoundingClientRect();
+  mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  
+  // Update raycaster
+  raycaster.setFromCamera(mouse, camera);
+  
+  // Check intersection with Earth
+  const intersects = raycaster.intersectObject(earth);
+  
+  if (intersects.length > 0) {
+    const hitPoint = intersects[0].point;
+    // Move impact point slightly above surface
+    const impactPosition = hitPoint.clone().normalize().multiplyScalar(EARTH_RADIUS * 1.01);
+    
+    const impact = createImpact(impactPosition);
+    activeImpacts.push(impact);
+    
+    // Stop auto-rotate on impact
+    controls.autoRotate = false;
+    
+    console.log('💥 ASTEROID IMPACT!');
+  }
+}
+
+// Add double-click listener for asteroid impacts
+canvas.addEventListener('dblclick', onGlobeDoubleClick);
+
+// Expose impact function for button
+window.triggerRandomImpact = function() {
+  // Random lat/lon
+  const lat = (Math.random() - 0.5) * 180;
+  const lon = (Math.random() - 0.5) * 360;
+  const position = latLonToPosition(lat, lon, EARTH_RADIUS * 1.01);
+  
+  const impact = createImpact(position);
+  activeImpacts.push(impact);
+  
+  console.log('💥 RANDOM ASTEROID IMPACT!');
+};
+
+// ============================================
 // STARFIELD
 // ============================================
 
@@ -1183,6 +1541,12 @@ function animate() {
     updateISSPosition();
     animateISS();
   }
+  
+  // Animate earthquake beams
+  animateEarthquakes();
+  
+  // Animate asteroid impacts
+  animateImpacts();
   
   controls.update();
   updateCoordinates();
