@@ -55,8 +55,16 @@ const cloudsTexture = textureLoader.load(
   'https://unpkg.com/three-globe@2.31.1/example/img/earth-clouds.png'
 );
 
+// Moon texture
+const moonTexture = textureLoader.load(
+  'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/moon_1024.jpg'
+);
+
 // Constants
 const EARTH_RADIUS = 1.5;
+const MOON_RADIUS = EARTH_RADIUS * 0.27; // Moon is ~27% of Earth's diameter
+const MOON_ORBIT_RADIUS = EARTH_RADIUS * 8; // Scaled down from real 60x for visibility
+const MOON_ORBITAL_PERIOD = 27.3; // days
 const ISS_ALTITUDE = 408; // km
 const EARTH_REAL_RADIUS = 6371; // km
 const ISS_ORBIT_RADIUS = EARTH_RADIUS * (1 + ISS_ALTITUDE / EARTH_REAL_RADIUS);
@@ -253,6 +261,118 @@ const atmosphereMaterial = new THREE.ShaderMaterial({
 });
 const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
 scene.add(atmosphere);
+
+// ============================================
+// THE MOON
+// ============================================
+
+// Calculate moon position based on current date (lunar cycle)
+function getMoonPosition() {
+  const now = new Date();
+  
+  // Reference new moon: January 6, 2000
+  const refNewMoon = new Date(2000, 0, 6, 18, 14);
+  const daysSinceRef = (now - refNewMoon) / (1000 * 60 * 60 * 24);
+  
+  // Moon's orbital progress (0 to 1)
+  const lunarPhase = (daysSinceRef % MOON_ORBITAL_PERIOD) / MOON_ORBITAL_PERIOD;
+  
+  // Moon's angle in its orbit (in radians)
+  const moonAngle = lunarPhase * Math.PI * 2;
+  
+  // Moon's orbit is inclined ~5.1 degrees to Earth's equator
+  const inclination = THREE.MathUtils.degToRad(5.1);
+  
+  // Calculate position
+  const x = Math.cos(moonAngle) * MOON_ORBIT_RADIUS;
+  const z = Math.sin(moonAngle) * MOON_ORBIT_RADIUS * Math.cos(inclination);
+  const y = Math.sin(moonAngle) * MOON_ORBIT_RADIUS * Math.sin(inclination);
+  
+  return { position: new THREE.Vector3(x, y, z), phase: lunarPhase };
+}
+
+// Moon group (for easier positioning)
+const moonGroup = new THREE.Group();
+scene.add(moonGroup);
+
+// Moon sphere
+const moonGeometry = new THREE.SphereGeometry(MOON_RADIUS, 32, 32);
+const moonMaterial = new THREE.MeshPhongMaterial({
+  map: moonTexture,
+  bumpMap: moonTexture,
+  bumpScale: 0.005,
+  shininess: 2,
+});
+const moon = new THREE.Mesh(moonGeometry, moonMaterial);
+moonGroup.add(moon);
+
+// Moon subtle glow
+const moonGlowGeometry = new THREE.SphereGeometry(MOON_RADIUS * 1.15, 32, 32);
+const moonGlowMaterial = new THREE.ShaderMaterial({
+  vertexShader: `
+    varying vec3 vNormal;
+    void main() {
+      vNormal = normalize(normalMatrix * normal);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    varying vec3 vNormal;
+    void main() {
+      float intensity = pow(0.65 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
+      gl_FragColor = vec4(0.8, 0.85, 1.0, 1.0) * intensity * 0.4;
+    }
+  `,
+  blending: THREE.AdditiveBlending,
+  side: THREE.BackSide,
+  transparent: true,
+});
+const moonGlow = new THREE.Mesh(moonGlowGeometry, moonGlowMaterial);
+moonGroup.add(moonGlow);
+
+// Moon orbit path visualization
+const moonOrbitGeometry = new THREE.BufferGeometry();
+const moonOrbitPoints = [];
+const moonOrbitSegments = 128;
+for (let i = 0; i <= moonOrbitSegments; i++) {
+  const angle = (i / moonOrbitSegments) * Math.PI * 2;
+  const inclination = THREE.MathUtils.degToRad(5.1);
+  moonOrbitPoints.push(
+    Math.cos(angle) * MOON_ORBIT_RADIUS,
+    Math.sin(angle) * MOON_ORBIT_RADIUS * Math.sin(inclination),
+    Math.sin(angle) * MOON_ORBIT_RADIUS * Math.cos(inclination)
+  );
+}
+moonOrbitGeometry.setAttribute('position', new THREE.Float32BufferAttribute(moonOrbitPoints, 3));
+
+const moonOrbitMaterial = new THREE.LineBasicMaterial({
+  color: 0xaaaacc,
+  transparent: true,
+  opacity: 0.1,
+});
+const moonOrbitLine = new THREE.Line(moonOrbitGeometry, moonOrbitMaterial);
+scene.add(moonOrbitLine);
+
+// Update moon position
+function updateMoonPosition() {
+  const { position, phase } = getMoonPosition();
+  moonGroup.position.copy(position);
+  
+  // Make moon always face Earth (tidally locked)
+  moonGroup.lookAt(0, 0, 0);
+  
+  // Update UI
+  const moonPhaseEl = document.getElementById('moon-phase');
+  if (moonPhaseEl) {
+    const phaseNames = ['🌑 New', '🌒 Waxing Crescent', '🌓 First Quarter', '🌔 Waxing Gibbous', 
+                        '🌕 Full', '🌖 Waning Gibbous', '🌗 Last Quarter', '🌘 Waning Crescent'];
+    const phaseIndex = Math.floor(phase * 8) % 8;
+    moonPhaseEl.textContent = phaseNames[phaseIndex];
+  }
+}
+
+// Initial moon position
+updateMoonPosition();
 
 // ============================================
 // SUN INDICATOR
@@ -1016,13 +1136,14 @@ function animate() {
   clouds.rotation.y += 0.0003;
   stars.rotation.y += 0.00005;
   
+  // Slowly rotate moon (it orbits Earth every ~27 days, but speed up for visual effect)
+  // Real-time update happens less frequently, this adds subtle movement
+  moonGroup.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.0001);
+  
   if (issDataFetched) {
     updateISSPosition();
     animateISS();
   }
-  
-  // Animate earthquake pulses
-  animateEarthquakes();
   
   controls.update();
   updateCoordinates();
