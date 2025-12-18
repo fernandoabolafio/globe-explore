@@ -11,14 +11,26 @@ An interactive 3D Earth globe exploration experience built with Three.js.
 - **Starfield Background**: Procedurally generated stars with varied colors
 - **Real-time Coordinates**: View latitude, longitude, and altitude as you explore
 
+## Visualization
+
+The globe uses a multi-layered Three.js approach:
+
+- **Earth Sphere**: High-resolution sphere (128×128 segments) with custom shader material
+- **Day/Night Shader**: Real-time blending between day (blue marble) and night (city lights) textures based on actual UTC time, with smooth terminator transitions and twilight effects
+- **Clouds Layer**: Transparent sphere layer that fades on the night side
+- **Atmosphere Glow**: Backside-rendered additive blending for atmospheric halo effect
+- **Textures**: NASA Blue Marble imagery loaded from CDN (day surface, night lights, clouds, topology)
+
 ## Getting Started
 
 1. Install dependencies:
+
    ```bash
    npm install
    ```
 
 2. Start the development server:
+
    ```bash
    npm run dev
    ```
@@ -44,4 +56,3 @@ npm run build
 ```
 
 The output will be in the `dist` folder.
-
