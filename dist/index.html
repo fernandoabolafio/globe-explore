@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Globe Explorer - ISS & Earthquake Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <script type="module" crossorigin src="/assets/index-BQGq-cMz.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DjM_mQmG.css">
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="globe-canvas"></canvas>
+      
+      <header class="header">
+        <h1 class="title">
+          <span class="title-icon">◉</span>
+          Globe Explorer
+        </h1>
+        <p class="subtitle">Day/Night • ISS • Moon • Planets • Earthquakes • 💥 Asteroids</p>
+      </header>
+
+      <!-- UTC Time Display -->
+      <div class="time-display">
+        <span class="time-label">🌍 EARTH TIME</span>
+        <span class="time-value" id="utc-time">00:00:00 UTC</span>
+      </div>
+
+      <!-- ISS Tracker Panel -->
+      <div class="iss-panel">
+        <div class="iss-header">
+          <div class="iss-indicator">
+            <span class="iss-dot"></span>
+            <span class="iss-label">ISS LIVE</span>
+          </div>
+          <span class="iss-name">International Space Station</span>
+        </div>
+        
+        <div class="iss-stats">
+          <div class="iss-stat">
+            <span class="iss-stat-label">LATITUDE</span>
+            <span class="iss-stat-value" id="iss-lat">--°</span>
+          </div>
+          <div class="iss-stat">
+            <span class="iss-stat-label">LONGITUDE</span>
+            <span class="iss-stat-value" id="iss-lon">--°</span>
+          </div>
+          <div class="iss-stat">
+            <span class="iss-stat-label">ALTITUDE</span>
+            <span class="iss-stat-value" id="iss-alt">-- km</span>
+          </div>
+          <div class="iss-stat">
+            <span class="iss-stat-label">VELOCITY</span>
+            <span class="iss-stat-value" id="iss-speed">-- km/h</span>
+          </div>
+        </div>
+
+        <div class="iss-footer">
+          <span class="iss-visibility" id="iss-visibility">⏳ Loading...</span>
+        </div>
+      </div>
+
+      <!-- Moon Panel -->
+      <div class="moon-panel">
+        <div class="moon-header">
+          <span class="moon-icon">🌙</span>
+          <span class="moon-label">THE MOON</span>
+        </div>
+        <div class="moon-info">
+          <div class="moon-phase-display" id="moon-phase">🌓 Loading...</div>
+          <div class="moon-facts">
+            <span>Distance: 384,400 km</span>
+            <span>Orbital period: 27.3 days</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Earthquake Panel -->
+      <div class="quake-panel">
+        <div class="quake-header">
+          <div class="quake-header-top">
+            <div class="quake-indicator">
+              <span class="quake-icon">🌋</span>
+              <span class="quake-label">EARTHQUAKES</span>
+            </div>
+            <button class="quake-toggle" id="quake-toggle" onclick="toggleEarthquakes()">HIDE</button>
+          </div>
+          <span class="quake-timeframe">Last 24 hours (M2.5+)</span>
+          <span class="quake-audio-hint">🔊 Click globe to enable audio</span>
+        </div>
+        
+        <div class="quake-stats">
+          <div class="quake-stat quake-stat-large">
+            <span class="quake-stat-value" id="quake-count">--</span>
+            <span class="quake-stat-label">TOTAL</span>
+          </div>
+          <div class="quake-stat">
+            <span class="quake-stat-label">STRONGEST</span>
+            <span class="quake-stat-value" id="quake-max-mag">--</span>
+          </div>
+        </div>
+
+        <div class="quake-recent">
+          <span class="quake-recent-label">LATEST:</span>
+          <span class="quake-recent-location" id="quake-last-location">Loading...</span>
+        </div>
+
+        <div class="quake-legend">
+          <div class="quake-legend-item">
+            <span class="quake-legend-dot quake-minor"></span>
+            <span>&lt;2.5</span>
+          </div>
+          <div class="quake-legend-item">
+            <span class="quake-legend-dot quake-light"></span>
+            <span>2.5-4.5</span>
+          </div>
+          <div class="quake-legend-item">
+            <span class="quake-legend-dot quake-moderate"></span>
+            <span>4.5-6</span>
+          </div>
+          <div class="quake-legend-item">
+            <span class="quake-legend-dot quake-major"></span>
+            <span>6+</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Asteroid Impact Panel -->
+      <div class="asteroid-panel">
+        <div class="asteroid-header">
+          <span class="asteroid-icon">☄️</span>
+          <span class="asteroid-label">ASTEROID SIMULATOR</span>
+        </div>
+        <div class="asteroid-instructions">
+          <span class="asteroid-tip">👆👆 Double-click on Earth</span>
+          <span class="asteroid-effect">to cause DEVASTATION</span>
+        </div>
+        <div class="asteroid-stats">
+          <div class="asteroid-stat">
+            <span class="asteroid-stat-value" id="impact-count">0</span>
+            <span class="asteroid-stat-label">IMPACTS</span>
+          </div>
+        </div>
+        <button class="asteroid-btn" onclick="triggerRandomImpact()">
+          💥 RANDOM STRIKE
+        </button>
+      </div>
+
+      <div class="controls-hint">
+        <div class="hint-item">
+          <span class="hint-icon">↻</span>
+          <span>Drag to rotate</span>
+        </div>
+        <div class="hint-item">
+          <span class="hint-icon">⊕</span>
+          <span>Scroll to zoom</span>
+        </div>
+        <div class="hint-item hint-impact">
+          <span class="hint-icon">💥</span>
+          <span>Double-click to impact</span>
+        </div>
+      </div>
+
+      <button class="panels-toggle" id="panels-toggle" onclick="toggleAllPanels()">
+        <span class="toggle-icon">👁</span>
+        <span class="toggle-text">HIDE PANELS</span>
+      </button>
+
+      <!-- Mobile Panel Switcher -->
+      <div class="mobile-panel-switcher" id="mobile-panel-switcher">
+        <button class="panel-tab active" data-panel="iss" onclick="switchMobilePanel('iss')">
+          <span class="tab-icon">🛰️</span>
+          <span class="tab-label">ISS</span>
+        </button>
+        <button class="panel-tab" data-panel="quake" onclick="switchMobilePanel('quake')">
+          <span class="tab-icon">🌋</span>
+          <span class="tab-label">Quakes</span>
+        </button>
+        <button class="panel-tab" data-panel="asteroid" onclick="switchMobilePanel('asteroid')">
+          <span class="tab-icon">☄️</span>
+          <span class="tab-label">Impact</span>
+        </button>
+      </div>
+
+      <div class="coordinates-display">
+        <div class="coord-group">
+          <span class="coord-label">LAT</span>
+          <span class="coord-value" id="lat-value">0.00°</span>
+        </div>
+        <div class="coord-group">
+          <span class="coord-label">LON</span>
+          <span class="coord-value" id="lon-value">0.00°</span>
+        </div>
+        <div class="coord-group">
+          <span class="coord-label">ALT</span>
+          <span class="coord-value" id="alt-value">2.5x</span>
+        </div>
+      </div>
+
+      <div class="loading-overlay" id="loading">
+        <div class="loader">
+          <div class="loader-ring"></div>
+          <span class="loader-text">Loading Earth & ISS...</span>
+        </div>
+      </div>
+    </div>
+
+
+    <script>
+      window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
+  </body>
+</html>

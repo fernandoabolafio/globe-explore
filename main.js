@@ -375,6 +375,194 @@ function updateMoonPosition() {
 updateMoonPosition();
 
 // ============================================
+// OTHER PLANETS (VISUALIZED AROUND EARTH)
+// ============================================
+
+const planetsGroup = new THREE.Group();
+scene.add(planetsGroup);
+
+function createPlanet({
+  name,
+  radius,
+  orbitRadius,
+  orbitSpeed,
+  inclinationDeg = 0,
+  axialTiltDeg = 0,
+  color = 0xffffff,
+  textureUrl = null,
+  hasRing = false,
+}) {
+  const planetContainer = new THREE.Group();
+  planetContainer.userData = {
+    name,
+    orbitRadius,
+    orbitSpeed,
+    inclination: THREE.MathUtils.degToRad(inclinationDeg),
+    angle: Math.random() * Math.PI * 2,
+  };
+
+  // Planet mesh
+  const geometry = new THREE.SphereGeometry(radius, 32, 32);
+  const material = new THREE.MeshPhongMaterial({
+    color,
+    shininess: 5,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.rotation.z = THREE.MathUtils.degToRad(axialTiltDeg);
+  planetContainer.add(mesh);
+
+  // Optional texture (loads asynchronously; starts as solid color)
+  if (textureUrl) {
+    textureLoader.load(
+      textureUrl,
+      (tex) => {
+        tex.colorSpace = THREE.SRGBColorSpace;
+        material.map = tex;
+        material.needsUpdate = true;
+      },
+      undefined,
+      () => {
+        // Keep the fallback color if the texture fails to load.
+      }
+    );
+  }
+
+  // Saturn-style ring (optional)
+  if (hasRing) {
+    const ringInner = radius * 1.3;
+    const ringOuter = radius * 2.1;
+    const ringGeometry = new THREE.RingGeometry(ringInner, ringOuter, 64);
+    const ringMaterial = new THREE.MeshBasicMaterial({
+      color: 0xd7c6a6,
+      transparent: true,
+      opacity: 0.35,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    });
+    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+    ring.rotation.x = Math.PI / 2;
+    ring.rotation.z = THREE.MathUtils.degToRad(25);
+    planetContainer.add(ring);
+  }
+
+  // Subtle orbit path
+  const orbitGeometry = new THREE.BufferGeometry();
+  const orbitPoints = [];
+  const segments = 128;
+  const inc = THREE.MathUtils.degToRad(inclinationDeg);
+  for (let i = 0; i <= segments; i++) {
+    const a = (i / segments) * Math.PI * 2;
+    // Inclined orbit plane: rotate Z into Y using inclination
+    const x = Math.cos(a) * orbitRadius;
+    const z = Math.sin(a) * orbitRadius * Math.cos(inc);
+    const y = Math.sin(a) * orbitRadius * Math.sin(inc);
+    orbitPoints.push(x, y, z);
+  }
+  orbitGeometry.setAttribute('position', new THREE.Float32BufferAttribute(orbitPoints, 3));
+  const orbitLine = new THREE.Line(
+    orbitGeometry,
+    new THREE.LineBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.05,
+    })
+  );
+  planetsGroup.add(orbitLine);
+
+  planetsGroup.add(planetContainer);
+  return planetContainer;
+}
+
+const PLANET_RING_BASE = EARTH_RADIUS * 5.2;
+const planetMeshes = [
+  createPlanet({
+    name: 'Mercury',
+    radius: EARTH_RADIUS * 0.09,
+    orbitRadius: PLANET_RING_BASE * 0.85,
+    orbitSpeed: 0.010,
+    inclinationDeg: 7,
+    axialTiltDeg: 0.1,
+    color: 0xb8b8b8,
+    textureUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/mercury.jpg',
+  }),
+  createPlanet({
+    name: 'Venus',
+    radius: EARTH_RADIUS * 0.12,
+    orbitRadius: PLANET_RING_BASE * 0.98,
+    orbitSpeed: 0.008,
+    inclinationDeg: 3.4,
+    axialTiltDeg: 177.4,
+    color: 0xe8c07a,
+    textureUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/venus.jpg',
+  }),
+  createPlanet({
+    name: 'Mars',
+    radius: EARTH_RADIUS * 0.10,
+    orbitRadius: PLANET_RING_BASE * 1.12,
+    orbitSpeed: 0.007,
+    inclinationDeg: 1.8,
+    axialTiltDeg: 25.2,
+    color: 0xcc6644,
+    textureUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/mars_1k_color.jpg',
+  }),
+  createPlanet({
+    name: 'Jupiter',
+    radius: EARTH_RADIUS * 0.22,
+    orbitRadius: PLANET_RING_BASE * 1.30,
+    orbitSpeed: 0.005,
+    inclinationDeg: 1.3,
+    axialTiltDeg: 3.1,
+    color: 0xd9b38c,
+    textureUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/jupiter.jpg',
+  }),
+  createPlanet({
+    name: 'Saturn',
+    radius: EARTH_RADIUS * 0.19,
+    orbitRadius: PLANET_RING_BASE * 1.50,
+    orbitSpeed: 0.004,
+    inclinationDeg: 2.5,
+    axialTiltDeg: 26.7,
+    color: 0xe3d2b5,
+    textureUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/saturn.jpg',
+    hasRing: true,
+  }),
+  createPlanet({
+    name: 'Uranus',
+    radius: EARTH_RADIUS * 0.16,
+    orbitRadius: PLANET_RING_BASE * 1.70,
+    orbitSpeed: 0.0035,
+    inclinationDeg: 0.8,
+    axialTiltDeg: 97.8,
+    color: 0x88ccdd,
+    textureUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/uranus.jpg',
+  }),
+  createPlanet({
+    name: 'Neptune',
+    radius: EARTH_RADIUS * 0.16,
+    orbitRadius: PLANET_RING_BASE * 1.88,
+    orbitSpeed: 0.003,
+    inclinationDeg: 1.8,
+    axialTiltDeg: 28.3,
+    color: 0x3b6fd8,
+    textureUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/neptune.jpg',
+  }),
+];
+
+function updatePlanets() {
+  planetMeshes.forEach((planetContainer) => {
+    const { orbitRadius, orbitSpeed, inclination } = planetContainer.userData;
+    planetContainer.userData.angle += orbitSpeed;
+    const a = planetContainer.userData.angle;
+
+    const x = Math.cos(a) * orbitRadius;
+    const z = Math.sin(a) * orbitRadius * Math.cos(inclination);
+    const y = Math.sin(a) * orbitRadius * Math.sin(inclination);
+
+    planetContainer.position.set(x, y, z);
+  });
+}
+
+// ============================================
 // SUN INDICATOR
 // ============================================
 
@@ -1625,6 +1813,9 @@ function animate() {
   // Slowly rotate moon (it orbits Earth every ~27 days, but speed up for visual effect)
   // Real-time update happens less frequently, this adds subtle movement
   moonGroup.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.0001);
+
+  // Other planets orbiting around Earth (visual ring)
+  updatePlanets();
   
   if (issDataFetched) {
     updateISSPosition();
